@@ -1,0 +1,38 @@
+# Run philter-mcp as a long-running, networked MCP service (streamable-http).
+#
+#   docker compose up --build
+#
+# The MCP endpoint is then served at http://localhost:8000/mcp and talks to the
+# Philter instance at PHILTER_BASE_URL.
+#
+# For the stdio use case (Claude Desktop / Claude Code launching the server
+# directly), you do not need compose. Use the image instead, for example:
+#   docker run -i --rm -e PHILTER_BASE_URL=https://host:8080 -e PHILTER_VERIFY_SSL=false philterd/philter-mcp
+services:
+  philter-mcp:
+    build: .
+    image: philterd/philter-mcp:latest
+    environment:
+      # Point at your Philter instance. host.docker.internal reaches a Philter
+      # running on the host; use http://philter:8080 if you add a Philter service below.
+      PHILTER_BASE_URL: ${PHILTER_BASE_URL:-http://host.docker.internal:8080}
+      PHILTER_API_KEY: ${PHILTER_API_KEY:-}
+      PHILTER_DEFAULT_POLICY: ${PHILTER_DEFAULT_POLICY:-}
+      PHILTER_VERIFY_SSL: ${PHILTER_VERIFY_SSL:-true}
+      # Serve MCP over HTTP so it can run as a service.
+      PHILTER_MCP_TRANSPORT: streamable-http
+      PHILTER_MCP_HOST: 0.0.0.0
+      PHILTER_MCP_PORT: "8000"
+    ports:
+      - "${PHILTER_MCP_PORT:-8000}:8000"
+    extra_hosts:
+      # Lets host.docker.internal resolve on Linux as well as macOS/Windows.
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # Optional: run Philter alongside the MCP server. Uncomment and set the image to a
+  # Philter container you have access to, then set PHILTER_BASE_URL to http://philter:8080.
+  # philter:
+  #   image: philterd/philter:latest
+  #   ports:
+  #     - "8080:8080"
