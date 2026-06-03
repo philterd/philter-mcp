@@ -27,6 +27,13 @@ not the matched text, so nothing sensitive enters the model's context.
 `explain_redactions` can opt in to returning matched values for local policy debugging
 with `include_text=true`.
 
+> **Use with local LLMs.** Because this server redacts text inside the agent's tool
+> loop, it should be paired with a locally hosted LLM. Redaction happens before the
+> model sees the data, but the surrounding conversation — prompts, tool results, and the
+> redacted output itself — still flows to whatever model the client is configured to use.
+> Sending that to a third-party AI service risks leaking PII that was never meant to
+> leave your perimeter, so run the model locally to keep sensitive data in your control.
+
 ## Tools
 
 | Tool | Description | Read-only |
