@@ -75,7 +75,7 @@ def test_explain_returns_filtered_text():
     assert data["documentId"]
 
 
-def test_explain_passes_policy_context_document_id():
+def test_explain_passes_policy_context_filename():
     captured = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -84,8 +84,9 @@ def test_explain_passes_policy_context_document_id():
         return httpx.Response(200, json=EXPLAIN_RESPONSE)
 
     client = PhilterClient(base_url="http://philter.test", transport=httpx.MockTransport(handler))
-    asyncio.run(client.explain("hello", policy="hipaa", context="ctx1", document_id="doc1"))
-    assert captured["params"] == {"p": "hipaa", "c": "ctx1", "d": "doc1"}
+    asyncio.run(client.explain("hello", policy="hipaa", context="ctx1", filename="notes.txt"))
+    # Philter 4.0.0 /api/explain takes c, p, and filename (no document-id input).
+    assert captured["params"] == {"p": "hipaa", "c": "ctx1", "filename": "notes.txt"}
     assert captured["body"] == "hello"
 
 
@@ -118,7 +119,9 @@ def test_api_key_sets_authorization_header():
         transport=httpx.MockTransport(handler),
     )
     asyncio.run(client.policies())
-    assert captured["auth"] == "Bearer secret-key"
+    # Philter 4.0.0 receives the key verbatim as the Authorization value; the
+    # client does not prepend a "Bearer " scheme (the caller adds one if needed).
+    assert captured["auth"] == "secret-key"
 
 
 def test_policies_and_policy_and_status():

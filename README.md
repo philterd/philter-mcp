@@ -6,7 +6,7 @@ MCP-aware client can call. Redact sensitive data from inside an agent's tool loo
 Claude Desktop, Claude Code, Cursor, Continue, Goose, and others, without writing
 integration code.
 
-**Compatible with Philter 3.x.** It wraps the Philter 3.x REST API (`/api/explain`,
+**Compatible with Philter 4.0.0.** It wraps the Philter 4.0.0 REST API (`/api/explain`,
 `/api/policies`, `/api/status`); you point it at a running Philter instance.
 
 ## Why
@@ -45,13 +45,14 @@ with `include_text=true`.
 | `get_policy` | Return a policy's JSON definition. | yes |
 | `status` | Return the Philter instance status and health. | yes |
 
-`redact_text` and `redact_file` accept optional `policy`, `context`, and `document_id`
-arguments. `context` and `document_id` are passed through to Philter so its consistent
-anonymization and format-preserving behavior hold across requests.
+`redact_text` accepts optional `policy`, `context`, and `filename` arguments
+(`redact_file` derives `filename` from the file). `context` is passed through to
+Philter so its consistent anonymization and format-preserving behavior hold
+across requests; the document id is assigned by Philter and returned in the report.
 
 ## Requirements
 
-- A running Philter 3.x instance reachable from where this server runs.
+- A running Philter 4.0.0 instance reachable from where this server runs.
 - Python 3.10 or newer (only if installing from source; `uvx`/`pipx` manage this for you).
 
 ## Install and run
@@ -76,7 +77,7 @@ All configuration is via environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PHILTER_BASE_URL` | `http://localhost:8080` | Base URL of your Philter instance. |
-| `PHILTER_API_KEY` | (unset) | Sent as `Authorization: Bearer <key>` when set. |
+| `PHILTER_API_KEY` | (unset) | Sent verbatim as the `Authorization` header value when set. Include a scheme such as `Bearer ` yourself if your Philter deployment requires it. |
 | `PHILTER_DEFAULT_POLICY` | (unset) | Policy name used when a call omits `policy`. |
 | `PHILTER_VERIFY_SSL` | `true` | Set to `false` for Philter's default self-signed certificate. |
 

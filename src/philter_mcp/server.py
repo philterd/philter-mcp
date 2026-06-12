@@ -71,7 +71,7 @@ async def redact_text(
     text: str,
     policy: Optional[str] = None,
     context: Optional[str] = None,
-    document_id: Optional[str] = None,
+    filename: Optional[str] = None,
 ) -> dict[str, Any]:
     """Redact PII and PHI from a string using Philter.
 
@@ -84,10 +84,11 @@ async def redact_text(
         policy: Name of the Philter policy to apply. Falls back to PHILTER_DEFAULT_POLICY,
             then to Philter's own default policy.
         context: Logical grouping for consistent anonymization across requests.
-        document_id: Stable identifier so repeated runs anonymize consistently.
+            Use the same context across calls to anonymize consistently.
+        filename: Optional document name recorded by Philter for traceability.
     """
     try:
-        data = await client.explain(text, policy=policy, context=context, document_id=document_id)
+        data = await client.explain(text, policy=policy, context=context, filename=filename)
     except PhilterError as exc:
         return {"error": str(exc)}
     return {
@@ -110,20 +111,19 @@ async def redact_file(
     path: str,
     policy: Optional[str] = None,
     context: Optional[str] = None,
-    document_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Redact PII and PHI from a UTF-8 text file (logs, CSV exports, tickets, transcripts).
 
     Reads the file locally, sends its contents to Philter, and returns the
     redacted content plus a redaction report (no original sensitive values). The
     file on disk is not modified. PDF and other binary files are not supported in
-    this version.
+    this version. The file's name is passed to Philter as the document filename.
 
     Args:
         path: Path to a UTF-8 text file to redact.
         policy: Name of the Philter policy to apply.
         context: Logical grouping for consistent anonymization across requests.
-        document_id: Stable identifier so repeated runs anonymize consistently.
+            Use the same context across calls to anonymize consistently.
     """
     file_path = Path(path).expanduser()
     if not file_path.is_file():
@@ -138,7 +138,7 @@ async def redact_file(
             )
         }
     try:
-        data = await client.explain(text, policy=policy, context=context, document_id=document_id)
+        data = await client.explain(text, policy=policy, context=context, filename=file_path.name)
     except PhilterError as exc:
         return {"error": str(exc)}
     return {

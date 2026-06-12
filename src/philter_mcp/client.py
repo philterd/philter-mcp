@@ -1,12 +1,13 @@
 """Async HTTP client for the Philter REST API.
 
-Wraps the endpoints documented at
-https://github.com/philterd/philter/blob/main/docs/docs/api_and_sdks/api/ :
+Targets the Philter 4.0.0 API, defined by the OpenAPI specification at
+https://github.com/philterd/philter/blob/main/docs/docs/api_and_sdks/openapi.json
+(the same contract the official ``philter-sdk-java`` client implements):
 
 - POST /api/explain          filter text and return a detailed explanation
 - GET  /api/policies         list policy names
 - GET  /api/policies/{name}  get a policy's JSON definition
-- GET  /api/status           health/status of the Philter instance
+- GET  /api/status           status of the Philter instance (also /api/health)
 
 Redaction goes through /api/explain (not /api/filter) so the tools can return a
 report of what was redacted alongside the redacted text.
@@ -37,7 +38,8 @@ class PhilterClient:
     Configuration is read from the environment unless overridden:
 
     - ``PHILTER_BASE_URL``       base URL of the Philter instance (default ``http://localhost:8080``)
-    - ``PHILTER_API_KEY``        sent as ``Authorization: Bearer <key>`` when set
+    - ``PHILTER_API_KEY``        sent verbatim as the ``Authorization`` header value when set
+      (include a scheme such as ``Bearer `` yourself if your Philter deployment requires it)
     - ``PHILTER_DEFAULT_POLICY`` policy name used when a call omits ``policy``
     - ``PHILTER_VERIFY_SSL``     verify TLS certificates (default ``true``; set ``false``
       for Philter's default self-signed certificate)
@@ -68,7 +70,10 @@ class PhilterClient:
         if content_type:
             headers["Content-Type"] = content_type
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            # Philter 4.0.0 compares the Authorization header against the
+            # configured key, so it is sent verbatim. Callers include a scheme
+            # (e.g. "Bearer ") in PHILTER_API_KEY only if their deployment wants it.
+            headers["Authorization"] = self.api_key
         return headers
 
     def _client(self) -> httpx.AsyncClient:
@@ -91,17 +96,22 @@ class PhilterClient:
         text: str,
         policy: Optional[str] = None,
         context: Optional[str] = None,
-        document_id: Optional[str] = None,
+        filename: Optional[str] = None,
     ) -> dict[str, Any]:
-        """Filter ``text`` and return Philter's explanation JSON."""
+        """Filter ``text`` and return Philter's explanation JSON.
+
+        The Philter 4.0.0 ``/api/explain`` endpoint takes ``c`` (context),
+        ``p`` (policy), and ``filename``; the document id is assigned by Philter
+        and returned in the response (``documentId``), not supplied by the caller.
+        """
         params: dict[str, str] = {}
         resolved = self.resolve_policy(policy)
         if resolved:
             params["p"] = resolved
         if context:
             params["c"] = context
-        if document_id:
-            params["d"] = document_id
+        if filename:
+            params["filename"] = filename
         async with self._client() as client:
             try:
                 resp = await client.post(
