@@ -3,7 +3,8 @@
 #   docker compose up --build
 #
 # The MCP endpoint is then served at http://localhost:8000/mcp and talks to the
-# Philter instance at PHILTER_BASE_URL.
+# Philter instance at PHILTER_BASE_URL. http://localhost:8000/health reports the
+# health of the MCP server itself.
 #
 # For the stdio use case (Claude Desktop / Claude Code launching the server
 # directly), you do not need compose. Use the image instead, for example:
@@ -28,6 +29,18 @@ services:
     extra_hosts:
       # Lets host.docker.internal resolve on Linux as well as macOS/Windows.
       - "host.docker.internal:host-gateway"
+    # /health is served only by the networked transports, so this belongs here
+    # rather than in the Dockerfile, whose default transport is stdio.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   # Optional: run Philter alongside the MCP server. Uncomment and set the image to a

@@ -19,7 +19,10 @@ from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
+from . import __version__
 from .client import PhilterClient, PhilterError
 
 mcp = FastMCP("philter-mcp")
@@ -215,6 +218,20 @@ async def status() -> Any:
         return await client.status()
     except PhilterError as exc:
         return {"error": str(exc)}
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health(request: Request) -> JSONResponse:
+    """Health of this MCP server, shaped like Spring Boot Actuator's /health.
+
+    Served only by the networked transports (streamable-http and sse); stdio has
+    no listener. The route is unauthenticated, as health checks are meant to be.
+
+    It reports only this server's own state and does not probe Philter, so a
+    Philter outage cannot make an orchestrator restart a healthy MCP server. Use
+    the ``status`` tool for the backend's health.
+    """
+    return JSONResponse({"status": "UP", "applicationVersion": __version__})
 
 
 def main() -> None:

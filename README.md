@@ -158,6 +158,20 @@ instance at `PHILTER_BASE_URL` (`host.docker.internal:8080` by default). Overrid
 `PHILTER_BASE_URL`, `PHILTER_API_KEY`, `PHILTER_DEFAULT_POLICY`, `PHILTER_VERIFY_SSL`,
 and `PHILTER_MCP_PORT` as needed.
 
+### Health endpoint
+
+The networked transports (`streamable-http` and `sse`) also serve an unauthenticated
+`GET /health`, shaped like Spring Boot Actuator's:
+
+```json
+{ "status": "UP", "applicationVersion": "0.1.0" }
+```
+
+It reports the health of the MCP server itself and does not probe Philter, so a
+Philter outage will not cause an orchestrator to restart a working MCP server. Use
+the `status` tool for the backend Philter's health. The `stdio` transport has no
+listener, so it does not serve this route.
+
 Build the image yourself with `docker build -t philterd/philter-mcp .`.
 
 ## Example prompts

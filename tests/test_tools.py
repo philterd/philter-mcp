@@ -14,6 +14,7 @@ import json
 import httpx
 import pytest
 
+import philter_mcp
 import philter_mcp.server as server
 from philter_mcp.client import PhilterClient
 
@@ -208,3 +209,26 @@ def test_main_defaults_to_stdio_when_unset(monkeypatch):
     monkeypatch.delenv("PHILTER_MCP_TRANSPORT", raising=False)
     server.main()
     assert captured["transport"] == "stdio"
+
+
+def test_health_returns_actuator_shaped_body():
+    resp = asyncio.run(server.health(None))
+    assert resp.status_code == 200
+    assert resp.media_type == "application/json"
+    body = json.loads(resp.body)
+    assert body == {"status": "UP", "applicationVersion": philter_mcp.__version__}
+
+
+def test_health_does_not_call_philter(monkeypatch):
+    # Health is this server's own liveness, so a Philter outage must not affect it.
+    def _fail():
+        raise AssertionError("health must not call Philter")
+
+    monkeypatch.setattr(server.client, "status", _fail)
+    assert json.loads(asyncio.run(server.health(None)).body)["status"] == "UP"
+
+
+@pytest.mark.parametrize("app_factory", ["streamable_http_app", "sse_app"])
+def test_health_is_mounted_on_networked_transports(app_factory):
+    app = getattr(server.mcp, app_factory)()
+    assert "/health" in [getattr(route, "path", None) for route in app.routes]
