@@ -29,8 +29,8 @@ with `include_text=true`.
 
 > **Use with local LLMs.** Because this server redacts text inside the agent's tool
 > loop, it should be paired with a locally hosted LLM. Redaction happens before the
-> model sees the data, but the surrounding conversation — prompts, tool results, and the
-> redacted output itself — still flows to whatever model the client is configured to use.
+> model sees the data, but the surrounding conversation (prompts, tool results, and the
+> redacted output itself) still flows to whatever model the client is configured to use.
 > Sending that to a third-party AI service risks leaking PII that was never meant to
 > leave your perimeter, so run the model locally to keep sensitive data in your control.
 
@@ -118,8 +118,16 @@ Then `claude mcp list` should show `philter` connected.
 
 ## Docker
 
-A container image is provided. By default it runs the stdio transport, so an MCP
-client can launch it directly:
+The image is published on Docker Hub as
+[`philterd/philter-mcp`](https://hub.docker.com/r/philterd/philter-mcp), as a
+multi-architecture manifest covering `linux/amd64` and `linux/arm64`:
+
+```bash
+docker pull philterd/philter-mcp:0.1.0
+```
+
+Version tags are immutable; `latest` tracks the most recent release. By default the
+image runs the stdio transport, so an MCP client can launch it directly:
 
 ```bash
 docker run -i --rm \
@@ -172,7 +180,16 @@ Philter outage will not cause an orchestrator to restart a working MCP server. U
 the `status` tool for the backend Philter's health. The `stdio` transport has no
 listener, so it does not serve this route.
 
-Build the image yourself with `docker build -t philterd/philter-mcp .`.
+To build the image yourself, `build-image.sh` builds both architectures and loads
+them locally:
+
+```bash
+./build-image.sh 0.1.0
+```
+
+Images are published by hand with `push-image.sh`, never by CI. CI builds both
+architectures on every pull request so a broken Dockerfile fails the build, but it
+does not push.
 
 ## Example prompts
 
