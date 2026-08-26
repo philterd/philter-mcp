@@ -183,32 +183,44 @@ def test_explain_redactions_can_include_text(monkeypatch):
 
 # --- main() transport selection ------------------------------------------------
 
-def test_main_runs_selected_transport_and_binding(monkeypatch):
+def _capture_run(monkeypatch):
+    """Record the keyword arguments main() passes to MCPServer.run()."""
     captured = {}
-    monkeypatch.setattr(server.mcp, "run", lambda transport="stdio": captured.update(transport=transport))
+    monkeypatch.setattr(server.mcp, "run", lambda **kwargs: captured.update(kwargs))
+    return captured
+
+
+def test_main_runs_selected_transport_and_binding(monkeypatch):
+    captured = _capture_run(monkeypatch)
     monkeypatch.setenv("PHILTER_MCP_TRANSPORT", "streamable-http")
     monkeypatch.setenv("PHILTER_MCP_HOST", "0.0.0.0")
     monkeypatch.setenv("PHILTER_MCP_PORT", "9191")
     server.main()
-    assert captured["transport"] == "streamable-http"
-    assert server.mcp.settings.host == "0.0.0.0"
-    assert server.mcp.settings.port == 9191
+    assert captured == {"transport": "streamable-http", "host": "0.0.0.0", "port": 9191}
+
+
+def test_main_binding_defaults_to_localhost(monkeypatch):
+    captured = _capture_run(monkeypatch)
+    monkeypatch.setenv("PHILTER_MCP_TRANSPORT", "sse")
+    monkeypatch.delenv("PHILTER_MCP_HOST", raising=False)
+    monkeypatch.delenv("PHILTER_MCP_PORT", raising=False)
+    server.main()
+    assert captured == {"transport": "sse", "host": "127.0.0.1", "port": 8000}
 
 
 def test_main_defaults_to_stdio_on_invalid_transport(monkeypatch):
-    captured = {}
-    monkeypatch.setattr(server.mcp, "run", lambda transport="stdio": captured.update(transport=transport))
+    captured = _capture_run(monkeypatch)
     monkeypatch.setenv("PHILTER_MCP_TRANSPORT", "bogus")
     server.main()
-    assert captured["transport"] == "stdio"
+    # stdio has no listener, so no host or port is passed.
+    assert captured == {"transport": "stdio"}
 
 
 def test_main_defaults_to_stdio_when_unset(monkeypatch):
-    captured = {}
-    monkeypatch.setattr(server.mcp, "run", lambda transport="stdio": captured.update(transport=transport))
+    captured = _capture_run(monkeypatch)
     monkeypatch.delenv("PHILTER_MCP_TRANSPORT", raising=False)
     server.main()
-    assert captured["transport"] == "stdio"
+    assert captured == {"transport": "stdio"}
 
 
 def test_health_returns_actuator_shaped_body():

@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -25,7 +25,7 @@ from starlette.responses import JSONResponse
 from . import __version__
 from .client import PhilterClient, PhilterError
 
-mcp = FastMCP("philter-mcp")
+mcp = MCPServer("philter-mcp", version=__version__)
 client = PhilterClient()
 
 
@@ -239,18 +239,23 @@ def main() -> None:
 
     Transport is selected by ``PHILTER_MCP_TRANSPORT`` (default ``stdio`` for
     desktop and IDE clients). Set it to ``streamable-http`` or ``sse`` for hosted or
-    containerized use; the bind address and port then come from ``FASTMCP_HOST`` and
-    ``FASTMCP_PORT``.
+    containerized use; the bind address and port then come from ``PHILTER_MCP_HOST``
+    and ``PHILTER_MCP_PORT``.
     """
     transport = os.environ.get("PHILTER_MCP_TRANSPORT", "stdio").strip().lower()
     if transport not in ("stdio", "sse", "streamable-http"):
         transport = "stdio"
-    if transport != "stdio":
-        # Bind address/port for the networked transports. Containers need
-        # 0.0.0.0 to be reachable from outside; default to localhost otherwise.
-        mcp.settings.host = os.environ.get("PHILTER_MCP_HOST", "127.0.0.1")
-        mcp.settings.port = int(os.environ.get("PHILTER_MCP_PORT", "8000"))
-    mcp.run(transport=transport)
+    if transport == "stdio":
+        mcp.run(transport=transport)
+        return
+    # Bind address and port belong to the networked transports only, and are
+    # passed to run() rather than set on the server. Containers need 0.0.0.0 to be
+    # reachable from outside; default to localhost otherwise.
+    mcp.run(
+        transport=transport,
+        host=os.environ.get("PHILTER_MCP_HOST", "127.0.0.1"),
+        port=int(os.environ.get("PHILTER_MCP_PORT", "8000")),
+    )
 
 
 if __name__ == "__main__":
