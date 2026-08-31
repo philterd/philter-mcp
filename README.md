@@ -9,7 +9,8 @@ integration code.
 **Compatible with Philter 4.0.0.** It wraps the Philter 4.0.0 REST API (`/api/explain`,
 `/api/policies`, `/api/status`); you point it at a running Philter instance.
 
-Full documentation: [https://philterd.github.io/philter-mcp/](https://philterd.github.io/philter-mcp/)
+📖 **[Read the documentation](https://philterd.github.io/philter-mcp/)** for installation,
+client setup, the full tool reference, and configuration.
 
 ## Why
 
@@ -36,6 +37,9 @@ with `include_text=true`.
 > Sending that to a third-party AI service risks leaking PII that was never meant to
 > leave your perimeter, so run the model locally to keep sensitive data in your control.
 
+Detection is probabilistic and policy-driven. It reduces how much sensitive data reaches a
+model rather than eliminating it, so validate output against your own data.
+
 ## Tools
 
 | Tool | Description | Read-only |
@@ -47,89 +51,21 @@ with `include_text=true`.
 | `get_policy` | Return a policy's JSON definition. | yes |
 | `status` | Return the Philter instance status and health. | yes |
 
-`redact_text` accepts optional `policy`, `context`, and `filename` arguments
-(`redact_file` derives `filename` from the file). `context` is passed through to
-Philter so its consistent anonymization and format-preserving behavior hold
-across requests; the document id is assigned by Philter and returned in the report.
+Full arguments and return shapes: [Tools](https://philterd.github.io/philter-mcp/tools/).
 
-## Requirements
+## Install
 
-- A running Philter 4.0.0 instance reachable from where this server runs.
-- Python 3.10 or newer (only if installing from source; `uvx`/`pipx` manage this for you).
+Requires a running Philter 4.0.0 instance reachable from where this server runs, and
+Python 3.10 or newer if installing from source.
 
-## Install and run
+> **Not yet published to PyPI.** Until it is, install from source or use the Docker image:
+>
+> ```bash
+> pip install git+https://github.com/philterd/philter-mcp
+> ```
 
-The server speaks MCP over stdio and is meant to be launched by your MCP client. The
-easiest way is with [`uv`](https://docs.astral.sh/uv/):
-
-```bash
-uvx philter-mcp
-```
-
-or with pipx:
-
-```bash
-pipx run philter-mcp
-```
-
-## Configuration
-
-All configuration is via environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PHILTER_BASE_URL` | `http://localhost:8080` | Base URL of your Philter instance. |
-| `PHILTER_API_KEY` | (unset) | Sent verbatim as the `Authorization` header value when set. Include a scheme such as `Bearer ` yourself if your Philter deployment requires it. |
-| `PHILTER_DEFAULT_POLICY` | (unset) | Policy name used when a call omits `policy`. |
-| `PHILTER_VERIFY_SSL` | `true` | Set to `false` for Philter's default self-signed certificate. |
-
-> Philter launched from a cloud marketplace serves HTTPS with a self-signed certificate.
-> In that case set `PHILTER_BASE_URL=https://...` and `PHILTER_VERIFY_SSL=false`.
-
-### Claude Desktop
-
-Add to `claude_desktop_config.json` (Settings, Developer, Edit Config):
-
-```json
-{
-  "mcpServers": {
-    "philter": {
-      "command": "uvx",
-      "args": ["philter-mcp"],
-      "env": {
-        "PHILTER_BASE_URL": "https://localhost:8080",
-        "PHILTER_VERIFY_SSL": "false"
-      }
-    }
-  }
-}
-```
-
-Restart Claude Desktop. The Philter tools appear in the tools menu.
-
-### Claude Code
-
-```bash
-claude mcp add philter \
-  --env PHILTER_BASE_URL=https://localhost:8080 \
-  --env PHILTER_VERIFY_SSL=false \
-  -- uvx philter-mcp
-```
-
-Then `claude mcp list` should show `philter` connected.
-
-## Docker
-
-The image is published on Docker Hub as
-[`philterd/philter-mcp`](https://hub.docker.com/r/philterd/philter-mcp), as a
-multi-architecture manifest covering `linux/amd64` and `linux/arm64`:
-
-```bash
-docker pull philterd/philter-mcp:0.1.0
-```
-
-Version tags are immutable; `latest` tracks the most recent release. By default the
-image runs the stdio transport, so an MCP client can launch it directly:
+The published image runs the stdio transport by default, so an MCP client can launch it
+directly:
 
 ```bash
 docker run -i --rm \
@@ -138,67 +74,27 @@ docker run -i --rm \
   philterd/philter-mcp
 ```
 
-Claude Desktop config using the image:
+See [Installation](https://philterd.github.io/philter-mcp/installation/) and
+[Docker](https://philterd.github.io/philter-mcp/docker/), including running it as a
+networked service.
 
-```json
-{
-  "mcpServers": {
-    "philter": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-e", "PHILTER_BASE_URL=https://host.docker.internal:8080",
-        "-e", "PHILTER_VERIFY_SSL=false",
-        "philterd/philter-mcp"
-      ]
-    }
-  }
-}
-```
+## Configure a client
 
-To run it as a long-running networked MCP service instead (streamable-http), use the
-included compose file:
+Claude Code, using the image:
 
 ```bash
-docker compose up --build
+claude mcp add philter \
+  --env PHILTER_BASE_URL=https://localhost:8080 \
+  --env PHILTER_VERIFY_SSL=false \
+  -- docker run -i --rm -e PHILTER_BASE_URL -e PHILTER_VERIFY_SSL philterd/philter-mcp
 ```
 
-That serves the MCP endpoint at `http://localhost:8000/mcp`, talking to the Philter
-instance at `PHILTER_BASE_URL` (`host.docker.internal:8080` by default). Override
-`PHILTER_BASE_URL`, `PHILTER_API_KEY`, `PHILTER_DEFAULT_POLICY`, `PHILTER_VERIFY_SSL`,
-and `PHILTER_MCP_PORT` as needed.
+Claude Desktop, Cursor, and others are covered in
+[MCP Clients](https://philterd.github.io/philter-mcp/clients/).
 
-### Health endpoint
-
-The networked transports (`streamable-http` and `sse`) also serve an unauthenticated
-`GET /health`, shaped like Spring Boot Actuator's:
-
-```json
-{ "status": "UP", "applicationVersion": "0.1.0" }
-```
-
-It reports the health of the MCP server itself and does not probe Philter, so a
-Philter outage will not cause an orchestrator to restart a working MCP server. Use
-the `status` tool for the backend Philter's health. The `stdio` transport has no
-listener, so it does not serve this route.
-
-To build the image yourself, `build-image.sh` builds both architectures and loads
-them locally:
-
-```bash
-./build-image.sh 0.1.0
-```
-
-Images are published by hand with `push-image.sh`, never by CI. CI builds both
-architectures on every pull request so a broken Dockerfile fails the build, but it
-does not push.
-
-## Example prompts
-
-- "Redact the PII from `./tickets.csv` and show me the result."
-- "Before I share this log, redact any personal data: `<paste>`"
-- "Which redaction policies are available on my Philter instance?"
-- "Using the `hipaa` policy, explain what would be redacted in this note and why."
+Configuration is entirely through environment variables, chiefly `PHILTER_BASE_URL`,
+`PHILTER_API_KEY`, `PHILTER_DEFAULT_POLICY`, and `PHILTER_VERIFY_SSL`. See
+[Configuration](https://philterd.github.io/philter-mcp/configuration/).
 
 ## Development
 
@@ -211,6 +107,8 @@ pytest
 ```
 
 The tests use a mocked HTTP transport, so no running Philter instance is required.
+
+Documentation lives in `docs/` and is published to GitHub Pages on every push to `main`.
 
 ## Related
 

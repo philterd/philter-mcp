@@ -49,6 +49,8 @@ pip install -e ".[dev]"
 pytest
 ```
 
+The tests use a mocked HTTP transport, so no running Philter instance is required.
+
 ## PyPI
 
 Not yet published. Once it is, `uvx philter-mcp` and `pipx run philter-mcp` will work. In

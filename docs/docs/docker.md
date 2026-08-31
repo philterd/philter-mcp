@@ -1,7 +1,11 @@
 # Docker
 
-The image is published as `philterd/philter-mcp`, with `latest` and `0.1.0` tags for amd64
-and arm64.
+The image is published on Docker Hub as
+[`philterd/philter-mcp`](https://hub.docker.com/r/philterd/philter-mcp), as a
+multi-architecture manifest covering `linux/amd64` and `linux/arm64`.
+
+Version tags such as `0.1.0` are immutable. `latest` tracks the most recent release, so
+pin a version tag for anything you depend on.
 
 ## As a stdio server
 
@@ -59,6 +63,13 @@ There is no health endpoint under `stdio`, which has no listener.
 The container runs as an unprivileged user (uid 1000). Port 8000 is exposed but used only
 by the networked transports.
 
-Images are built by CI on every push and pull request, but pushed to the registry by a
-human. A broken Dockerfile fails a pull request without any workflow holding a registry
-credential.
+To build the image yourself, `build-image.sh` builds both architectures and loads them
+locally:
+
+```bash
+./build-image.sh 0.1.0
+```
+
+Images are published by hand with `push-image.sh`, never by CI. CI builds both
+architectures on every push and pull request so a broken Dockerfile fails the build, but no
+workflow holds a registry credential.

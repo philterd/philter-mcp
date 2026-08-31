@@ -62,3 +62,12 @@ the server can reach Philter.
 If `status` returns an error, the server started but could not reach Philter. Check
 `PHILTER_BASE_URL`, and set `PHILTER_VERIFY_SSL=false` if Philter is serving its default
 self-signed certificate.
+
+## Example prompts
+
+Once connected, the tools are invoked by asking for them in plain language:
+
+- "Redact the PII from `./tickets.csv` and show me the result."
+- "Before I share this log, redact any personal data: `<paste>`"
+- "Which redaction policies are available on my Philter instance?"
+- "Using the `hipaa` policy, explain what would be redacted in this note and why."
