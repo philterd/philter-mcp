@@ -9,6 +9,8 @@ integration code.
 **Compatible with Philter 4.0.0.** It wraps the Philter 4.0.0 REST API (`/api/explain`,
 `/api/policies`, `/api/status`); you point it at a running Philter instance.
 
+Full documentation: [https://philterd.github.io/philter-mcp/](https://philterd.github.io/philter-mcp/)
+
 ## Why
 
 - A developer about to paste a production record into a chat can redact it first.

@@ -1,0 +1,21 @@
+site_name: Philter MCP
+repo_url: https://github.com/philterd/philter-mcp
+site_url: https://philterd.github.io/philter-mcp/
+edit_uri: '?query=docs/docs/'
+copyright: Copyright 2026 Philterd, LLC
+site_author: philterd
+site_description: User guide for Philter MCP, a Model Context Protocol server for PII and PHI redaction.
+theme:
+  name: material
+  locale: en
+  palette:
+    primary: red
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - MCP Clients: clients.md
+  - Tools: tools.md
+  - Configuration: configuration.md
+  - Docker: docker.md
+  - Privacy: privacy.md
+  - FAQ: faq.md
