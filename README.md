@@ -110,6 +110,11 @@ The tests use a mocked HTTP transport, so no running Philter instance is require
 
 Documentation lives in `docs/` and is published to GitHub Pages on every push to `main`.
 
+## Community
+
+Questions, ideas, or want to contribute? Users and developers are welcome to
+[join the Philterd Slack workspace](https://philterd.ai/slack/).
+
 ## Related
 
 - [Philter](https://www.philterd.ai/philter/): the self-hosted redaction API this wraps.
