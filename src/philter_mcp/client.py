@@ -5,7 +5,7 @@ https://github.com/philterd/philter/blob/main/docs/docs/api_and_sdks/openapi.jso
 (the same contract the official ``philter-sdk-java`` client implements):
 
 - POST /api/explain          filter text and return a detailed explanation
-- GET  /api/policies         list policy names
+- GET  /api/policies         list policies, a page at a time
 - GET  /api/policies/{name}  get a policy's JSON definition
 - GET  /api/status           status of the Philter instance (also /api/health)
 
@@ -19,6 +19,11 @@ import os
 from typing import Any, Optional
 
 import httpx
+
+# Philter 4.0 returns the id it recorded the document under in this header.
+DOCUMENT_ID_HEADER = "X-Document-Id"
+# The largest page GET /api/policies returns in Philter 4.0.
+POLICIES_PAGE_SIZE = 100
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -101,8 +106,9 @@ class PhilterClient:
         """Filter ``text`` and return Philter's explanation JSON.
 
         The Philter 4.0.0 ``/api/explain`` endpoint takes ``c`` (context),
-        ``p`` (policy), and ``filename``; the document id is assigned by Philter
-        and returned in the response (``documentId``), not supplied by the caller.
+        ``p`` (policy), and ``filename``. The document id is assigned by Philter
+        and sent in the ``X-Document-Id`` response header, not in the body, so it
+        is added to the returned JSON as ``documentId`` (``None`` when absent).
         """
         params: dict[str, str] = {}
         resolved = self.resolve_policy(policy)
@@ -121,19 +127,38 @@ class PhilterClient:
                     headers=self._headers("text/plain"),
                 )
                 resp.raise_for_status()
-                return resp.json()
+                data = resp.json()
             except httpx.HTTPError as exc:
                 raise PhilterError(f"Philter explain request failed: {exc}") from exc
+        data["documentId"] = resp.headers.get(DOCUMENT_ID_HEADER)
+        return data
 
-    async def policies(self) -> Any:
-        """Return the list of policy names available on the Philter instance."""
+    async def policies(self) -> list[str]:
+        """Return the names of all policies available on the Philter instance.
+
+        Philter 4.0 returns ``{"policies": [{"name": ...}, ...], "total": N}`` a page
+        at a time, so this requests pages until ``total`` names are read. Philter 3.x
+        returns a plain list of names, which is returned as is.
+        """
+        names: list[str] = []
         async with self._client() as client:
-            try:
-                resp = await client.get("/api/policies", headers=self._headers())
-                resp.raise_for_status()
-                return resp.json()
-            except httpx.HTTPError as exc:
-                raise PhilterError(f"Philter policies request failed: {exc}") from exc
+            while True:
+                try:
+                    resp = await client.get(
+                        "/api/policies",
+                        params={"offset": len(names), "limit": POLICIES_PAGE_SIZE},
+                        headers=self._headers(),
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                except httpx.HTTPError as exc:
+                    raise PhilterError(f"Philter policies request failed: {exc}") from exc
+                if isinstance(data, list):
+                    return data
+                page = data.get("policies") or []
+                names.extend(policy["name"] for policy in page)
+                if not page or len(names) >= data.get("total", 0):
+                    return names
 
     async def policy(self, name: str) -> Any:
         """Return a single policy's JSON definition."""

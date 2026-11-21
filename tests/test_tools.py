@@ -22,32 +22,48 @@ from philter_mcp.client import PhilterClient
 RAW_NAME = "George Washington"
 RAW_SSN = "123-45-6789"
 
+APPLIED_SPANS = [
+    {
+        "characterStart": 0,
+        "characterEnd": 17,
+        "filterType": "NER_ENTITY",
+        "confidence": 0.91,
+        "text": RAW_NAME,
+        "replacement": "{{{REDACTED-entity}}}",
+        "ignored": False,
+        "applied": True,
+    },
+    {
+        "characterStart": 48,
+        "characterEnd": 59,
+        "filterType": "SSN",
+        "confidence": 1,
+        "text": RAW_SSN,
+        "replacement": "{{{REDACTED-ssn}}}",
+        "ignored": False,
+        "applied": True,
+    },
+]
+
+# Philter 4.0 shape: identifiedSpans holds every span found, applied or ignored,
+# and the document id is sent in the X-Document-Id header, not in the body.
 EXPLAIN_RESPONSE = {
-    "filteredText": "{{{REDACTED-entity}}} was a patient and his ssn was {{{REDACTED-ssn}}}.",
+    "filteredText": "{{{REDACTED-entity}}} was a patient and his ssn was {{{REDACTED-ssn}}}. Call 555-0100.",
     "context": "none",
-    "documentId": "doc-123",
     "explanation": {
-        "appliedSpans": [
+        "appliedSpans": APPLIED_SPANS,
+        "identifiedSpans": APPLIED_SPANS + [
             {
-                "characterStart": 0,
-                "characterEnd": 17,
-                "filterType": "NER_ENTITY",
-                "confidence": 0.91,
-                "text": RAW_NAME,
-                "replacement": "{{{REDACTED-entity}}}",
-                "ignored": False,
-            },
-            {
-                "characterStart": 48,
-                "characterEnd": 59,
-                "filterType": "SSN",
-                "confidence": 1,
-                "text": RAW_SSN,
-                "replacement": "{{{REDACTED-ssn}}}",
-                "ignored": False,
+                "characterStart": 66,
+                "characterEnd": 74,
+                "filterType": "PHONE_NUMBER",
+                "confidence": 0.95,
+                "text": "555-0100",
+                "replacement": "555-0100",
+                "ignored": True,
+                "applied": False,
             },
         ],
-        "ignoredSpans": [],
     },
 }
 
@@ -55,9 +71,11 @@ EXPLAIN_RESPONSE = {
 def _ok_handler(request: httpx.Request) -> httpx.Response:
     path = request.url.path
     if path == "/api/explain":
-        return httpx.Response(200, json=EXPLAIN_RESPONSE)
+        return httpx.Response(200, json=EXPLAIN_RESPONSE, headers={"X-Document-Id": "doc-123"})
     if path == "/api/policies":
-        return httpx.Response(200, json=["default", "hipaa"])
+        return httpx.Response(
+            200, json={"policies": [{"name": "default"}, {"name": "hipaa"}], "total": 2}
+        )
     if path.startswith("/api/policies/"):
         return httpx.Response(200, json={"name": path.rsplit("/", 1)[-1], "identifiers": {}})
     if path == "/api/status":
@@ -89,6 +107,7 @@ def test_redact_text_returns_filtered_text_and_report(monkeypatch):
     assert result["document_id"] == "doc-123"
     assert result["redaction_count"] == 2
     assert result["redactions_by_type"] == {"NER_ENTITY": 1, "SSN": 1}
+    assert result["ignored_count"] == 1
 
 
 def test_redact_text_does_not_leak_pii(monkeypatch):
@@ -113,6 +132,7 @@ def test_redact_file_happy_path(monkeypatch, tmp_path):
     result = asyncio.run(server.redact_file(str(f)))
     assert result["filtered_text"] == EXPLAIN_RESPONSE["filteredText"]
     assert result["path"] == str(f)
+    assert result["document_id"] == "doc-123"
     assert result["redaction_count"] == 2
     assert_no_raw_pii(result)
 
@@ -170,6 +190,7 @@ def test_explain_redactions_omits_text_by_default(monkeypatch):
     use_client(monkeypatch, _ok_handler)
     result = asyncio.run(server.explain_redactions("George Washington ... 123-45-6789"))
     assert result["redaction_count"] == 2
+    assert result["ignored_count"] == 1
     assert result["document_id"] == "doc-123"
     assert_no_raw_pii(result)
 
