@@ -37,7 +37,8 @@ def _report(explain_json: dict[str, Any], include_text: bool = False) -> dict[st
     """
     explanation = explain_json.get("explanation") or {}
     spans = explanation.get("appliedSpans") or []
-    ignored = explanation.get("ignoredSpans") or []
+    # identifiedSpans holds every span Philter found, each flagged applied or ignored.
+    identified = explanation.get("identifiedSpans") or []
     by_type: dict[str, int] = {}
     out: list[dict[str, Any]] = []
     for span in spans:
@@ -57,7 +58,7 @@ def _report(explain_json: dict[str, Any], include_text: bool = False) -> dict[st
     return {
         "redaction_count": len(out),
         "redactions_by_type": by_type,
-        "ignored_count": len(ignored),
+        "ignored_count": sum(1 for span in identified if span.get("ignored")),
         "spans": out,
     }
 
